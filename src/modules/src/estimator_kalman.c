@@ -195,6 +195,8 @@ static int32_t lastPrediction;
 static int32_t lastBaroUpdate;
 static int32_t lastPNUpdate;
 static Axis3f accAccumulator;
+static Axis3f accAccumulatorSENT;  // NOL Add
+static Axis3f gyroAccumulatorSENT;  // NOL Add
 static float thrustAccumulator;
 static Axis3f gyroAccumulator;
 static baro_t baroAccumulator;
@@ -293,6 +295,11 @@ void estimatorKalman(state_t *state, sensorData_t *sensors, control_t *control, 
     // Assume that the flight begins when the thrust is large enough and for now we never stop "flying".
     if (thrustAccumulator > IN_FLIGHT_THRUST_THRESHOLD) {
       lastFlightCmd = xTaskGetTickCount();
+
+      // ADDED Nol
+      gyroAccumulatorSENT = gyroAccumulator;
+      accAccumulatorSENT = accAccumulator; // FIXME: compatible with refactor
+      
       if (!quadIsFlying) {
         takeoffTime = lastFlightCmd;
       }

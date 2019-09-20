@@ -82,24 +82,25 @@ void commanderGetSetpoint(setpoint_t *setpoint, const state_t *state)
   lastUpdate = setpoint->timestamp;
   uint32_t currentTime = xTaskGetTickCount();
 
-  if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_SHUTDOWN) {
-    if (enableHighLevel) {
-      crtpCommanderHighLevelGetSetpoint(setpoint, state);
-    }
-    if (!enableHighLevel || crtpCommanderHighLevelIsStopped()) {
-      memcpy(setpoint, &nullSetpoint, sizeof(nullSetpoint));
-    }
-  } else if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_STABILIZE) {
+  // if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_SHUTDOWN) {
+  //   if (enableHighLevel) {
+  //     crtpCommanderHighLevelGetSetpoint(setpoint, state);
+  //   }
+  //   if (!enableHighLevel || crtpCommanderHighLevelIsStopped()) {
+  //     memcpy(setpoint, &nullSetpoint, sizeof(nullSetpoint));
+  //   }
+  // } else
+  if ((currentTime - setpoint->timestamp) > COMMANDER_WDT_TIMEOUT_STABILIZE) {
     xQueueOverwrite(priorityQueue, &priorityDisable);
     // Leveling ...
-    setpoint->mode.x = modeDisable;
-    setpoint->mode.y = modeDisable;
-    setpoint->mode.roll = modeAbs;
-    setpoint->mode.pitch = modeAbs;
-    setpoint->mode.yaw = modeVelocity;
-    setpoint->attitude.roll = 0;
-    setpoint->attitude.pitch = 0;
-    setpoint->attitudeRate.yaw = 0;
+    // setpoint->mode.x = modeDisable;
+    // setpoint->mode.y = modeDisable;
+    // setpoint->mode.roll = modeAbs;
+    // setpoint->mode.pitch = modeAbs;
+    // setpoint->mode.yaw = modeVelocity;
+    // setpoint->attitude.roll = 0.f;
+    // setpoint->attitude.pitch = 0.f;
+    // setpoint->attitudeRate.yaw = 0.f;
     // Keep Z as it is
   }
 }

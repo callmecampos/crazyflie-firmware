@@ -30,6 +30,7 @@
 
 typedef enum {
   ControllerTypeAny,
+  ControllerTypePWM,
   ControllerTypePID,
   ControllerTypeMellinger,
   ControllerType_COUNT,

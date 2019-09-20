@@ -21,17 +21,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
- * power_distribution.h - Interface to stabilizer power distribution
+ * controller_pid.h - PID Controller Interface
  */
-#ifndef __POWER_DISTRIBUTION_H__
-#define __POWER_DISTRIBUTION_H__
+#ifndef __CONTROLLER_PID_H__
+#define __CONTROLLER_PID_H__
 
 #include "stabilizer_types.h"
 
-void powerDistributionInit(void);
-bool powerDistributionTest(void);
-void powerDistribution(const control_t *control, uint32_t tick);
-void powerStop();
+void controllerPidInit(void);
+bool controllerPidTest(void);
+void controllerPid(control_t *control, setpoint_t *setpoint,
+                                         const sensorData_t *sensors,
+                                         const state_t *state,
+                                         const uint32_t tick);
 
-
-#endif //__POWER_DISTRIBUTION_H__
+#endif //__CONTROLLER_PID_H__

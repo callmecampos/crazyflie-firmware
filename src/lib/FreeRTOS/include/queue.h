@@ -686,6 +686,7 @@ BaseType_t xQueueGenericSend( QueueHandle_t xQueue, const void * const pvItemToQ
  * \ingroup QueueManagement
  */
 #define xQueuePeek( xQueue, pvBuffer, xTicksToWait ) xQueueGenericReceive( ( xQueue ), ( pvBuffer ), ( xTicksToWait ), pdTRUE )
+#define xQueuePop( xQueue, pvBuffer, xTicksToWait ) xQueueGenericReceive( ( xQueue ), ( pvBuffer ), ( xTicksToWait ), pdFALSE ) // original pdTRUE-- changed so the peek becomes a pop
 
 /**
  * queue. h

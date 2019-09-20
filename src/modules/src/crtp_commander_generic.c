@@ -29,6 +29,7 @@
 
 #include "crtp_commander.h"
 
+#include "controller.h"
 #include "commander.h"
 #include "param.h"
 #include "crtp.h"
@@ -71,6 +72,7 @@ enum packet_type {
   hoverType         = 5,
   fullStateType     = 6,
   positionType      = 7,
+  rawpwmType        = 8,
 };
 
 /* ---===== 2 - Decoding functions =====--- */
@@ -145,6 +147,31 @@ static void zDistanceDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
 
   setpoint->attitude.roll = values->roll;
   setpoint->attitude.pitch = values->pitch;
+}
+
+void rawpwmDecoder(setpoint_t *setpoint, CRTPPacket *pk)
+{
+  struct CommanderCrtpCompactValues *packed_values = (struct CommanderCrtpCompactValues*)pk->data;
+
+  uint32_t codedAll = 0x00000000;
+
+  float initialRoll = packed_values->packed_motor_vals;
+
+  memcpy(&codedAll, &initialRoll, sizeof(float));
+
+  uint16_t m1, m2, m3, m4;
+
+  m1   = (codedAll & 0x000000FF) << 8;
+  m2  = (codedAll & 0x0000FF00);
+  m3    = (codedAll & 0x00FF0000) >> 8;
+  m4 = (codedAll & 0xFF000000) >> 16;
+
+  uint16_t tempPacketID = packed_values->packet_id;
+  uint16_t stamp;
+
+  memcpy(&stamp, &tempPacketID, sizeof(uint16_t));
+
+  custPowerDistributionTwo(m1, m2, m3, m4, stamp); //add stamp
 }
 
 /* cppmEmuDecoder
@@ -232,6 +259,17 @@ static void cppmEmuDecoder(setpoint_t *setpoint, uint8_t type, const void *data,
   }
 }
 
+// SOURCE: github.com/malintha /////////////////
+/* geometricDecoder
+ * Set the PWM values for each of the motor
+ */
+struct geometricPacket_s {
+    float pwm_m1;
+    float pwm_m2;
+    float pwm_m3;
+    float pwm_m4;
+} __attribute__((packed));
+
 /* altHoldDecoder
  * Set the Crazyflie vertical velocity and roll/pitch angle
  */
@@ -265,14 +303,18 @@ static void altHoldDecoder(setpoint_t *setpoint, uint8_t type, const void *data,
   setpoint->attitude.pitch = values->pitch;
 }
 
+static ControllerType currentController;
+
 /* hoverDecoder
  * Set the Crazyflie absolute height and velocity in the body coordinate system
  */
 struct hoverPacket_s {
-  float vx;           // m/s in the body frame of reference
+  /* float vx;           // m/s in the body frame of reference
   float vy;           // ...
   float yawrate;      // deg/s
-  float zDistance;    // m in the world frame of reference
+  float zDistance;    // m in the world frame of reference */
+  bool controllerFlag;
+	float thrust;
 } __attribute__((packed));
 static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, size_t datalen)
 {
@@ -280,7 +322,7 @@ static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, s
 
   ASSERT(datalen == sizeof(struct hoverPacket_s));
 
-  setpoint->mode.z = modeAbs;
+  /* setpoint->mode.z = modeAbs;
   setpoint->position.z = values->zDistance;
 
 
@@ -291,7 +333,10 @@ static void hoverDecoder(setpoint_t *setpoint, uint8_t type, const void *data, s
   setpoint->mode.x = modeVelocity;
   setpoint->mode.y = modeVelocity;
   setpoint->velocity.x = values->vx;
-  setpoint->velocity.y = values->vy;
+  setpoint->velocity.y = values->vy; */ // FIXME: optical flow stuff???
+
+  if (values->controllerFlag)
+	  currentController = ControllerTypePWM;
 
   setpoint->velocity_body = true;
 }
@@ -377,6 +422,7 @@ const static packetDecoder_t packetDecoders[] = {
   [hoverType]         = hoverDecoder,
   [fullStateType]     = fullStateDecoder,
   [positionType]      = positionDecoder,
+  [rawpwmType]        = rawpwmDecoder,
 };
 
 /* Decoder switch */

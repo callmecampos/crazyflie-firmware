@@ -43,6 +43,16 @@ typedef struct attitude_s {
   float yaw;
 } attitude_t;
 
+/* THRUSTS TYPE ADDED NOL */
+
+typedef struct thrusts_s {
+    float thrust_m1;
+    float thrust_m2;
+    float thrust_m3;
+    float thrust_m4;
+
+} thrusts_t;
+
 /* x,y,z vector */
 struct vec3_s {
   uint32_t timestamp; // Timestamp when the data was computed
@@ -156,9 +166,9 @@ typedef struct state_s {
 } state_t;
 
 typedef struct control_s {
-  int16_t roll;
-  int16_t pitch;
-  int16_t yaw;
+  uint16_t roll;
+  uint16_t pitch;
+  uint16_t yaw;
   float thrust;
 } control_t;
 

@@ -36,6 +36,7 @@
 #include "debug.h"
 #include "motors.h"
 #include "pm.h"
+#include "num.h"
 
 #include "stabilizer.h"
 
@@ -58,6 +59,10 @@ static int emergencyStopTimeout = EMERGENCY_STOP_TIMEOUT_DISABLED;
 static bool startPropTest = false;
 
 uint32_t inToOutLatency;
+
+static uint32_t packedImuL;
+static uint32_t packedImuA;
+static uint32_t packedYPR;
 
 // State variables for the stabilizer
 static setpoint_t setpoint;
@@ -203,7 +208,7 @@ bool stabilizerTest(void)
   pass &= sensorsTest();
   pass &= stateEstimatorTest();
   pass &= controllerTest();
-  pass &= powerDistributionTest();
+  // pass &= powerDistributionTest();
 
   return pass;
 }
@@ -260,32 +265,81 @@ static void stabilizerTask(void* param)
       testProps(&sensorData);
     } else {
       // allow to update estimator dynamically
-      if (getStateEstimator() != estimatorType) {
-        stateEstimatorInit(estimatorType);
-        estimatorType = getStateEstimator();
-      }
-      // allow to update controller dynamically
-      if (getControllerType() != controllerType) {
-        controllerInit(controllerType);
-        controllerType = getControllerType();
-      }
+      // if (getStateEstimator() != estimatorType) {
+      //   stateEstimatorInit(estimatorType);
+      //   estimatorType = getStateEstimator();
+      // }
+      // // allow to update controller dynamically
+      // if (getControllerType() != controllerType) {
+      //   controllerInit(controllerType);
+      //   controllerType = getControllerType();
+      // }
 
-      stateEstimator(&state, &sensorData, &control, tick);
-      compressState();
+      // stateEstimator(&state, &sensorData, &control, tick);
+      // compressState();
+
+      stateEstimator(&state, &sensorData, &control, tick); //This updates the state data
       
-      commanderGetSetpoint(&setpoint, &state);
-      compressSetpoint();
+      // commanderGetSetpoint(&setpoint, &state);
+      // compressSetpoint();
 
-      sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
+      // // sitAwUpdateSetpoint(&setpoint, &sensorData, &state);
 
-      controller(&control, &setpoint, &sensorData, &state, tick);
+      // controller(&control, &setpoint, &sensorData, &state, tick);
+
+      uint16_t x, y, z, ax, ay, az;
+    float lin_min = -20;
+    float lin_max =  20;
+
+    float ang_min = -360;
+    float ang_max =  360;
+
+    // convert from Gs to m/s^2 state.acc.z
+    x  = (constrain(sensorData.acc.x * 9.81f, lin_min, lin_max) + 20) * 25.6f;
+    y  = (constrain(sensorData.acc.y * 9.81f, lin_min, lin_max) + 20) * 25.6f;
+    z  = (constrain(sensorData.acc.z * 9.81f, lin_min, lin_max) + 20) * 25.6f;
+
+
+    ax = (constrain(sensorData.gyro.x, ang_min, ang_max) + 360) * 1.42f;
+    ay = (constrain(sensorData.gyro.y, ang_min, ang_max) + 360) * 1.42f;
+    az = (constrain(sensorData.gyro.z, ang_min, ang_max) + 360) * 1.42f;
+
+    packedImuL =   (x & 0b1111111111)
+    	        + ((y & 0b1111111111) << 10)
+			    + ((z & 0b1111111111) << 20);
+
+	packedImuA =   (ax & 0b1111111111)
+			    + ((ay & 0b1111111111) << 10)
+			    + ((az & 0b1111111111) << 20);
+
+          float y_max = 180;
+	float y_min = -180;
+	float pr_min = -90;
+	float pr_max =  90;
+
+	// PACKAGE YPR
+	uint16_t py, pp, pr;  // holders for packed values
+
+	// grab yaw pitch and roll
+//	py = state.attitude.yaw;
+//	pp = state.attitude.pitch;
+//	pr = state.attitude.roll;
+	// Trying constrained version
+	py = (constrain(state.attitude.yaw, y_min, y_max) + 180) * 2.84f;
+	pp = (constrain(state.attitude.pitch, pr_min, pr_max) + 90) * 2*2.84f;
+	pr = (constrain(state.attitude.roll, pr_min, pr_max) + 90) * 2*2.84f;
+
+	// package
+	packedYPR =   (py & 0b1111111111)
+    	       + ((pp & 0b1111111111) << 10)
+    		   + ((pr & 0b1111111111) << 20);
 
       checkEmergencyStopTimeout();
 
       if (emergencyStop) {
         powerStop();
       } else {
-        powerDistribution(&control);
+        // powerDistribution(&control);
       }
 
       // Log data to uSD card if configured
@@ -522,6 +576,9 @@ static void testProps(sensorData_t *sensors)
     testState = testDone;
   }
 }
+
+// FIXME: do tomorrow!!!
+
 PARAM_GROUP_START(health)
 PARAM_ADD(PARAM_UINT8, startPropTest, &startPropTest)
 PARAM_GROUP_STOP(health)
@@ -561,7 +618,13 @@ LOG_ADD(LOG_FLOAT, az, &setpoint.acceleration.z)
 LOG_ADD(LOG_FLOAT, roll, &setpoint.attitude.roll)
 LOG_ADD(LOG_FLOAT, pitch, &setpoint.attitude.pitch)
 LOG_ADD(LOG_FLOAT, yaw, &setpoint.attitudeRate.yaw)
+LOG_ADD(LOG_FLOAT, thrust, &setpoint.thrust)
 LOG_GROUP_STOP(ctrltarget)
+
+LOG_GROUP_START(compactImu)
+LOG_ADD(LOG_UINT32, l_xyz, &packedImuL)
+LOG_ADD(LOG_UINT32, a_xyz, &packedImuA)
+LOG_GROUP_STOP(compactImu)
 
 LOG_GROUP_START(ctrltargetZ)
 LOG_ADD(LOG_INT16, x, &setpointCompressed.x)   // position - mm
