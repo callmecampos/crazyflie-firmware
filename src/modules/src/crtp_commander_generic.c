@@ -75,6 +75,15 @@ enum packet_type {
   rawpwmType        = 8,
 };
 
+/**
+ * CRTP commander rpyt packet format
+ */
+struct CommanderCrtpCompactValues
+{
+  float packed_motor_vals;
+  uint16_t packet_id;  // Lambert added packetID to this commander packet
+} __attribute__((packed));
+
 /* ---===== 2 - Decoding functions =====--- */
 /* The setpoint structure is reinitialized to 0 before being passed to the
  * functions
@@ -394,6 +403,7 @@ static void fullStateDecoder(setpoint_t *setpoint, uint8_t type, const void *dat
    float z;
    float yaw;   // Orientation in degree
  } __attribute__((packed));
+ 
 static void positionDecoder(setpoint_t *setpoint, uint8_t type, const void *data, size_t datalen)
 {
   const struct positionPacket_s *values = data;
